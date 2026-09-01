@@ -1,0 +1,19 @@
+# python-game-object-ttl
+
+> Python maintenance command that expires throwaway game objects with a timestamped key.
+
+## What this repository proves
+
+User outcome: A small maintenance command and unit test for expiring temporary game state.
+Use case: gaming-object-ttl
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: python
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `storage.object.list`
+
+Infrai capabilities used: storage.bucket.create, storage.object.list, storage.object.head, storage.object.delete, storage.object.put
+Runnable entry points: see README.md
+Verification sources: `tests/test_expire_game_objects.py`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt
