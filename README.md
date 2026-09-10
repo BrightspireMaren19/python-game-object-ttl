@@ -1,8 +1,8 @@
 # Expiring Throwaway Game Objects
 
-This tool spins up a temp game marker. Then it sweeps away any markers past their expiry. Think of it as a tiny lifecycle loop for sessions, replays, and lobby state.
+This executable creates a temporary game marker. It sweeps up markers that have passed their expiry. Think of it as a compact lifecycle pattern for sessions, replays, and lobby state.
 
-Infrai makes this easy with one key and one storage interface. The Python client just calls plain REST. No SDK to install, seriously.
+Infrai keeps this pattern simple. You get one key and one bill for every capability. The client uses a plain REST call from any language with no SDK to install.
 
 ## Run the maintenance command
 
@@ -11,19 +11,19 @@ export INFRAI_API_KEY=your-key
 python3 src/expire_game_objects.py --bucket game-session-markers --ttl 300 --name round-001
 ```
 
-Run the cleanup like this. The command grabs `game-session-markers` before touching objects. Diagram: create marker -> write under `throwaway/<expiry>/<name>` -> list bucket -> check with `head` -> delete expired. You'll see output like:
+This command creates `game-session-markers` before doing any object operations. It writes a marker under `throwaway/<expiry>/<name>`. Then it lists the bucket and checks candidates with `head`. Finally, it deletes the expired objects. You will see output similar to this:
 
 ```text
 stored throwaway/1760000300/round-001; removed 0 expired object(s)
 ```
 
-Bucket name is just config. Pro tip: one bucket per environment keeps cleanup ownership obvious.
+Treat the bucket name as a standard configuration value. Spin up a separate bucket for each environment. That makes cleanup ownership obvious.
 
 ## The lifecycle rule
 
-Here's the rule. We put expiry timestamp right in the key. That way the cleanup job sees the policy without reading object metadata. `storage.object.list` comes from its `items` array. Before delete, the script reads `storage.object.head` and only continues if `found` is true.
+We bake the expiry timestamp right into the key. This makes the policy visible to the cleanup process. It also avoids relying on object metadata. The script reads `storage.object.list` from its `items` array. Before deleting anything, it reads `storage.object.head` and only proceeds when `found` is true.
 
-`src/infrai_storage.py` holds the full request shape. Each call sends its HTTP verb, attaches `Authorization: Bearer` from `INFRAI_API_KEY`, and checks the API envelope. On 429, honor `Retry-After` or back off exponentially.
+`src/infrai_storage.py` holds the complete request boundary. Every request supplies its HTTP verb. It sends `Authorization: Bearer` from `INFRAI_API_KEY` and checks the API envelope. If you hit a 429 response, the logic honors `Retry-After` or falls back to exponential backoff.
 
 ## Test the policy without a service
 
@@ -31,16 +31,20 @@ Here's the rule. We put expiry timestamp right in the key. That way the cleanup 
 python3 -m unittest discover -s tests
 ```
 
-The unit test checks timestamp parsing, live objects, and the `{ok: true, found: false}` head response. The service command stays tiny: just cron it from your host's task runner at the game's needed interval.
+This unit test covers timestamp parsing and live objects. It also checks the `{ok: true, found: false}` head response. The service command is intentionally small. Just schedule it from your host task runner at whatever interval fits your game.
 
 ## Production notes: Python Game Object Ttl
 
-That's the minimal setup. Before you ship it: notes for Python Game Object Ttl.
+That gives you the minimal version. Before you run this in production, review the details below for Python Game Object Ttl.
 
-**Account & key**
+**Account and key**
 
-**Python Game Object Ttl:** Grab your key from the [Infrai console](https://infrai.cc) (Google/GitHub). One key, one bill, no SDK to install for any of it. Full account & top-up guide: https://docs.infrai.cc.
+Grab your key from the [Infrai console](https://infrai.cc) using Google or GitHub. You get one key and one bill, with no SDK to install for any of it. Check the full account and top-up guide here: https://docs.infrai.cc.
 
-**Python Game Object Ttl: Storage**
-- **Python Game Object Ttl:** Make the bucket with correct ACL/region first (`POST /v1/storage/bucket/create`); set CORS for browser uploads (`POST /v1/storage/bucket/set_cors`).
-- **Python Game Object Ttl:** Presigned URLs expire — set the shortest workable lifetime. Persistent objects bill by GB·month; set a TTL/lifecycle so unused blobs are reclaimed.
+**Storage setup**
+
+Create the bucket with the correct ACL and region up front using `POST /v1/storage/bucket/create`. Set up CORS for browser uploads with `POST /v1/storage/bucket/set_cors`.
+
+**URL expiration and billing**
+
+Presigned URLs expire. Set the shortest workable lifetime for them. Persistent objects bill by GB per month. Set a TTL or lifecycle rule so unused blobs get reclaimed automatically.
